@@ -108,10 +108,12 @@ let bullTaskArray = {
     "sell_skin":{"taskName":"卖皮肤", "action":"sell_skin", "actid":1105},
     "feed":{"taskName":"喂长牛", "action":"feed", "actid":1105},
 }
+let TxStockAppUrl= $.isNode() ? (process.env.TxStockAppUrl ? process.env.TxStockAppUrl : "") : ($.getdata('TxStockAppUrl') ? $.getdata('TxStockAppUrl') : "")
 
-var TxStockAppUrl
-var TxStockAppHeader
-var TxStockWxHeader
+let TxStockAppHeader= $.isNode() ? (process.env.TxStockAppHeader ? process.env.TxStockAppHeader : "") : ($.getdata('TxStockAppHeader') ? $.getdata('TxStockAppHeader') : "")
+
+let TxStockWxHeader= $.isNode() ? (process.env.TxStockWxHeader ? process.env.TxStockWxHeader : "") : ($.getdata('TxStockWxHeader') ? $.getdata('TxStockWxHeader') : "")
+
 
 ///////////////////////////////////////////////////////////////////
 
