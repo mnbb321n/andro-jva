@@ -2,43 +2,47 @@ name: 自游股
 
 on:
   workflow_dispatch:
-  #schedule:
-    #- cron: '*/30 * * * *'
+  schedule:
+    - cron: 35 3,8 * * *
   watch:
     types: started
   repository_dispatch:
-    types: ranlv
+    types: bean_change
 jobs:
   build:
 
     runs-on: ubuntu-latest
     if: github.event.repository.owner.id == github.event.sender.id
+    env:
+        TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER }}
+        TxStockAppHeader2: ${{ secrets.TXSTOCKAPPHEADER2 }}
+        TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL }}
+        TxStockAppUrl2: ${{ secrets.TXSTOCKAPPURL2 }}
+        TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
+        TxStockWxHeader2: ${{ secrets.TXSTOCKWXHEADER2 }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-       
-      - name: Use Node.js ${{ matrix.node-version }}
+      - uses: actions/checkout@v2
+      - name: Use Node.js 14.x
         uses: actions/setup-node@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Cache node_modules
-        uses: actions/cache@v2 # 使用 GitHub 官方缓存 Action。
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }} # 使用 package-lock.json 的 Hash 作为缓存的 key。也可以使用 package.json 代替
+          node-version: 14.x
       - name: npm install
         run: |
           npm install
-      - name: '运行 【电视家】'
+      - name: '运行 【txzxtock】'
+        if: env.TxStockAppHeader
         run: |
-          node Task/dsj.js
+          node txzxtock.js
         env:
-          #RLURL: ${{ secrets.RLURL }}
-          #RLHEADER: ${{ secrets.RLHEADER }}
-          PUSH_KEY: ${{ secrets.PUSH_KEY }}
-          BARK_SOUND: ${{ secrets.BARK_SOUND }}
-          BARK_PUSH: ${{ secrets.BARK_PUSH }}
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_USER_ID: ${{ secrets.TG_USER_ID }}
+          TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER }}
+          TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL }}
+          TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
+  
+      - name: '运行 【txzxtock二】'
+        if: env.TxStockAppHeader2
+        run: |
+          node txzxtock.js
+        env:
+          TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER2 }}
+          TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL2 }}
+          TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER2 }}
