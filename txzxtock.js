@@ -1,6 +1,53 @@
+/*
+腾讯自选股APP & 微信微证券公众号
 
+只适配了IOS，测试了青龙和V2P，其他平台请自行测试，安卓请自行测试
+多用户用#隔开
 
-const jsname = '腾讯又选股'
+脚本只会在10点到13点之间进行猜涨跌，请务必在这段时间内跑一次脚本
+上证和个股猜涨跌开奖时间为15:15和16:30，建议16:30后再跑一次领奖
+有些任务会提示任务完成发奖失败 -- 可以忽略
+或者任务完成前置条件不符合 -- 一般为需要分享，会在完成日常任务后尝试做互助
+
+内置了多用户相互做分享任务，用户数多于一个才能用
+测试了做分享任务的情况下，一天收益大概在15000金币
+默认自动提现5元，做分享任务，不做新手任务
+新手任务可能需要跑几次才能做完，不过每天跑的话总会做完的
+
+提现条件设置：自己新建一个TxStockCash环境变量，0代表不提现，1代表提现1元，5代表提现5元
+新手任务设置：新建一个TxStockNewbie环境变量，0代表不做新手任务，1代表做新手任务
+分享任务设置：新建一个TxStockHelp环境变量，0代表不做分享互助，1代表做分享互助
+互助顺序设置：新建一个TxStockHelpOrder环境变量，按顺序填入要帮助的用户，0代表不帮助其他用户，每个用户之间用@或者#隔开
+
+青龙：
+APP和微信都捉 https://wzq.tenpay.com/cgi-bin/activity_task_daily.fcgi? 开头的包，点击获取金币，看到任务应该就能捉到
+APP捉包把整个URL放进去TxStockAppUrl，header转成JSON字符串之后放进去TxStockAppHeader
+微信微证券公众号捉包后header转成JSON字符串之后放进去TxStockWxHeader
+export TxStockAppUrl='https://wzq.ten....#https://wzq.ten....#https://wzq.ten....'
+export TxStockAppHeader='{"Host":"...","Accept":"...",...}#{"Host":"...","Accept":"...",...}#{"Host":"...","Accept":"...",...}'
+export TxStockWxHeader='{"Host":"...","Accept":"...",...}#{"Host":"...","Accept":"...",...}#{"Host":"...","Accept":"...",...}'
+
+重写食用
+TxStockAppUrl与TxStockAppHeader：打开APP，点击头像->右上角金币->获取金币
+TxStockWxHeader：打开 腾讯自选股微信版|微证券 公众号，右下角好福利->福利中心
+
+V2P：
+重写: https://wzq.tenpay.com/cgi-bin/activity_task_daily.fcgi?   https://raw.githubusercontent.com/leafxcy/JavaScript/main/txstock.js
+MITM: wzq.tenpay.com
+
+圈X：
+[task_local]
+#腾讯自选股
+35 11,16 * * * https://raw.githubusercontent.com/leafxcy/JavaScript/main/txstock.js, tag=腾讯自选股, enabled=true
+[rewrite_local]
+#获取APP和微信微证券的URL和header
+https://wzq.tenpay.com/cgi-bin/activity_task_daily.fcgi? url script-request-header https://raw.githubusercontent.com/leafxcy/JavaScript/main/txstock.js
+[MITM]
+hostname = wzq.tenpay.com
+
+*/
+
+const jsname = '腾讯自选股'
 const $ = Env(jsname)
 const notifyFlag = 1; //0为关闭通知，1为打开通知,默认为1
 
@@ -12,7 +59,7 @@ let todayDate = formatDateTime(new Date());
 
 var cash = ($.isNode() ? (process.env.TxStockCash) : ($.getval('TxStockCash'))) || 5; //0为不自动提现,1为自动提现1元,5为自动提现5元
 var help = ($.isNode() ? (process.env.TxStockHelp) : ($.getval('TxStockHelp'))) || 1; //0为不做分享助力任务，1为多用户互相分享助力
-var newbie = ($.isNode() ? (process.env.TxStockNewbie) : ($.getval('TxStockNewbie'))) || 1; //0为不做新手任务，1为自动做新手任务
+var newbie = ($.isNode() ? (process.env.TxStockNewbie) : ($.getval('TxStockNewbie'))) || 0; //0为不做新手任务，1为自动做新手任务
 var helpOrder = ($.isNode() ? (process.env.TxStockHelpOrder) : ($.getval('TxStockHelpOrder'))) || "";
 
 const appUrlArr = [];
@@ -60,7 +107,7 @@ let TEST_PRINT = 0
 let userAppShareTaskList = {
     "daily": ["news_share", "task_50_1111", "task_51_1111"/*, "task_72_1113", "task_74_1113"*/, ],
     "newbie": [],
-
+    
 }
 let userAppShareCodeArr = {
     "daily": {},
@@ -102,10 +149,10 @@ let wxTaskArray = {
 }
 
 //APP长牛任务
-let bullTaskArray = {
-    "rock_bullish":{"taskName":"戳牛任务", "action":"rock_bullish", "actid":1105},
-    "open_box":{"taskName":"开宝箱", "action":"open_box", "actid":1105},
-    "open_blindbox":{"taskName":"开盲盒", "action":"open_blindbox", "actid":1105},
+let bullTaskArray = { 
+    "rock_bullish":{"taskName":"戳牛任务", "action":"rock_bullish", "actid":1105}, 
+    "open_box":{"taskName":"开宝箱", "action":"open_box", "actid":1105}, 
+    "open_blindbox":{"taskName":"开盲盒", "action":"open_blindbox", "actid":1105}, 
     "query_blindbox":{"taskName":"查询皮肤数量", "action":"query_blindbox", "actid":1105},
     "sell_skin":{"taskName":"卖皮肤", "action":"sell_skin", "actid":1105},
     "feed":{"taskName":"喂长牛", "action":"feed", "actid":1105},
@@ -129,49 +176,49 @@ var TxStockWxHeader
         if(!(await checkEnv())){
             return
         }
-
+        
         //初始化任务列表
         await initTaskList()
-
+        
         //获取用户信息
         await initAccountInfo()
-
+        
         //新手任务
         await newbieTask()
-
+        
         for (numUser = 0; numUser < totalUser; numUser++)
         {
             await getEnvParam(numUser)
-
+            
             $.log(`\n======= 开始腾讯自选股用户${numUser+1} ${nickname[numUser]} 日常任务 =======\n`)
-
+            
             //await testFunction() //测试用，勿打开
-
+            
             await signStatus(2002,0); //签到
             await $.wait(1000)
-
+            
             await appGuessStatus(); //猜涨跌和获取互助码
             await $.wait(1000)
-
+            
             await dailyTask() //日常任务
             await $.wait(1000)
-
+            
             await queryShareCode() //获取日常任务互助码
             await $.wait(1000)
-
+            
             await bullTask() //长牛任务和获取互助码
             await $.wait(1000)
-
+            
             $.log(`\n======= 结束腾讯自选股用户${numUser+1} ${nickname[numUser]} 日常任务 =======\n`)
         }
-
+        
         await shareTask() //助力任务
-
+        
         await todayIncome()//收益查询，提现
-
+        
         await showmsg()
     }
-
+  
 
 })()
 .catch((e) => $.logErr(e))
@@ -186,9 +233,9 @@ async function testFunction() {
 
 //通知
 async function showmsg() {
-
+    
     notifyBody = jsname + "运行通知\n\n" + notifyStr
-
+    
     if (notifyFlag != 1) {
         console.log(notifyBody);
     }
@@ -213,7 +260,7 @@ async function getRewrite()
             $.setdata(JSON.stringify($request.headers),'TxStockAppHeader')
             $.log(`获取TxStockAppHeader成功: ${JSON.stringify($request.headers)}\n`)
             msgStr += `获取TxStockAppHeader成功: ${JSON.stringify($request.headers)}\n`
-
+            
             $.msg(msgStr)
         }
         else
@@ -240,7 +287,7 @@ async function checkEnv()
         TxStockAppHeader = $.getdata('TxStockAppHeader')
         TxStockWxHeader = $.getdata('TxStockWxHeader')
     }
-
+    
     if(!TxStockAppUrl || !TxStockAppHeader || !TxStockWxHeader)
     {
         str1 = TxStockAppUrl ? "" : "TxStockAppUrl"
@@ -249,7 +296,7 @@ async function checkEnv()
         $.log(`未找到环境变量: ${str1} ${str2} ${str3}\n`)
         return false
     }
-
+    
     if (TxStockAppUrl.indexOf('#') > -1) {
         appUrlArrs = TxStockAppUrl.split('#');
         console.log(`您选择的是用"#"隔开TxStockAppUrl\n`)
@@ -264,7 +311,7 @@ async function checkEnv()
             appUrlArr.push(appUrlArrs[item])
         }
     })
-
+    
     if (TxStockAppHeader.indexOf('#') > -1) {
         appHeaderArrs = TxStockAppHeader.split('#');
         console.log(`您选择的是用"#"隔开TxStockAppHeader\n`)
@@ -294,7 +341,7 @@ async function checkEnv()
             wxHeaderArr.push(wxHeaderArrs[item])
         }
     })
-
+    
     if(helpOrder) {
         if (helpOrder.indexOf('#') > -1) {
             helpOrderArrs = helpOrder.split('#');
@@ -311,11 +358,11 @@ async function checkEnv()
             }
         })
     }
-
+    
     totalUser = appUrlArr.length
     shareFlag = (help && totalUser > 1)
     $.log(`共找到${totalUser}个用户\n`)
-
+    
     return true
 }
 
@@ -324,7 +371,7 @@ async function getEnvParam(userNum)
     appUrlArrVal = appUrlArr[userNum];
     appHeaderArrVal = JSON.parse(appHeaderArr[userNum]);
     wxHeaderArrVal = JSON.parse(wxHeaderArr[userNum]);
-
+    
     app_openid = appUrlArrVal.match(/&openid=([\w-]+)/)[1]
     app_fskey = appUrlArrVal.match(/&fskey=([\w-]+)/)[1]
     app_token = appUrlArrVal.match(/&access_token=([\w-]+)/)[1]
@@ -332,7 +379,7 @@ async function getEnvParam(userNum)
     app_appver = appUrlArrVal.match(/&_appver=([\w\.,-]+)/)[1]
     app_osVer = appUrlArrVal.match(/&_osVer=([\w\.,-]+)/)[1]
     app_devId = appUrlArrVal.match(/&_devId=([\w-]+)/)[1]
-
+    
     app_ck = ""
     app_UA = ""
     Object.keys(appHeaderArrVal).forEach((item) => {
@@ -348,7 +395,7 @@ async function getEnvParam(userNum)
         }
     })
     app_ck = `pgv_pvid=${pgv_pvid}; ts_sid=${ts_sid}; ts_uid=${ts_uid}`
-
+    
     wx_ck_tmp = ""
     wx_UA = ""
     Object.keys(wxHeaderArrVal).forEach((item) => {
@@ -358,7 +405,7 @@ async function getEnvParam(userNum)
             wx_UA = wxHeaderArrVal[item]
         }
     })
-
+    
     pgv_info = wx_ck_tmp.match(/pgv_info=([\w=]+)/)[1]
     pgv_pvid = wx_ck_tmp.match(/pgv_pvid=([\w]+)/)[1]
     //ts_last = wx_ck_tmp.match(/ts_last=([\w\/]+)/)[1]
@@ -373,9 +420,9 @@ async function getEnvParam(userNum)
     wzq_qlskey = wx_ck_tmp.match(/wzq_qlskey=([\w]+)/)[1]
     wzq_qluin = wx_ck_tmp.match(/wzq_qluin=([\w-]+)/)[1]
     zxg_openid = wx_ck_tmp.match(/zxg_openid=([\w-]+)/)[1]
-
+    
     //wx_ck = `pgv_info=${pgv_info}; pgv_pvid=${pgv_pvid}; ts_last=${ts_last}; ts_refer=${ts_refer}; ts_sid=${ts_sid}; ts_uid=${ts_uid}; qlappid=${qlappid}; qlskey=${qlskey}; qluin=${qluin}; qq_logtype=${qq_logtype}; wx_session_time=${sessionTime}; wzq_qlappid=${wzq_qlappid}; wzq_qlskey=${wzq_qlskey}; wzq_qluin=${wzq_qluin}; zxg_openid=${zxg_openid}`
-
+    
     wx_ck = `pgv_info=${pgv_info}; pgv_pvid=${pgv_pvid}; qlappid=${qlappid}; qlskey=${qlskey}; qluin=${qluin}; wzq_qlappid=${wzq_qlappid}; wzq_qlskey=${wzq_qlskey}; wzq_qluin=${wzq_qluin}; zxg_openid=${zxg_openid}`
 }
 
@@ -384,7 +431,7 @@ async function initAccountInfo()
     for (numUser = 0; numUser < totalUser; numUser++)
     {
         await getEnvParam(numUser)
-
+        
         coinInfo = ""
         await orderQuery(1,1,0,0); //获取用户名
         coinStart.push(coinInfo)
@@ -392,33 +439,33 @@ async function initAccountInfo()
     }
 }
 
-async function initTaskList()
+async function initTaskList() 
 {
     $.log(`开始初始化任务列表\n`)
     let taskItem = {}
-
+    
     for(let i=0; i<appActidArray["newbie"].length; i++){
         taskItem = {"taskName":"APP新手任务","activity":"task_continue","type":"app_new_user","actid":appActidArray["newbie"][i]}
         appTaskArray["newbie"].push(taskItem)
     }
-
+    
     for(let i=0; i<appActidArray["daily"].length; i++){
         taskItem = {"taskName":"APP日常任务","activity":"task_daily","type":"routine","actid":appActidArray["daily"][i]}
         appTaskArray["daily"].push(taskItem)
     }
-
+    
     for(let i=0; i<wxActidArray["newbie"].length; i++){
         taskItem = {"taskName":"微信新手任务","activity":"task_continue","type":"wzq_welfare_growth","actid":wxActidArray["newbie"][i]}
         wxTaskArray["newbie"].push(taskItem)
     }
-
+    
     for(let i=0; i<wxActidArray["daily"].length; i++){
         taskItem = {"taskName":"微信日常任务","activity":"task_daily","type":"routine","actid":wxActidArray["daily"][i]}
         wxTaskArray["daily"].push(taskItem)
     }
 }
 
-async function bullTask()
+async function bullTask() 
 {
     if(bullishFlag == 1) {
         await bullStatus()
@@ -435,7 +482,7 @@ async function bullTask()
     }
 }
 
-async function dailyTask()
+async function dailyTask() 
 {
     //APP端任务
     if(appTaskFlag == 1) {
@@ -444,7 +491,7 @@ async function dailyTask()
             await appTaskList(appTaskArray["daily"][i]);
         }
     }
-
+    
     //微信端任务
     if(wxTaskFlag == 1) {
         for(let i=0; i<wxTaskArray["daily"].length; i++)
@@ -454,31 +501,31 @@ async function dailyTask()
     }
 }
 
-async function newbieTask()
+async function newbieTask() 
 {
     if(newbie == 1) {
         $.log(`\================= 开始新手任务 =================\n`)
         for (numUser = 0; numUser < totalUser; numUser++)
         {
             await getEnvParam(numUser)
-
+            
             $.log(`\开始用户 ${nickname[numUser]} 新手任务：\n`)
             for(let j=0; j<userAppShareTaskList["newbie"].length; j++)
             {
                 await appShareTaskReq(userAppShareTaskList["newbie"][j],"newbie")
             }
-
+            
             for(let j=0; j<userWxShareTaskList["newbie"].length; j++)
             {
                 await wxShareTaskReq(userWxShareTaskList["newbie"][j],"newbie")
             }
         }
-
+        
         for (numUser = 0; numUser < totalUser; numUser++)
         {
             await getEnvParam(numUser)
             await getHelpUser()
-
+            
             for(let j=0; j<userAppShareTaskList["newbie"].length; j++)
             {
                 shareTaskName = userAppShareTaskList["newbie"][j]
@@ -486,7 +533,7 @@ async function newbieTask()
                     await wxShareTaskDone(shareTaskName,userAppShareCodeArr["newbie"][shareTaskName][helpUser])
                 }
             }
-
+            
             for(let j=0; j<userWxShareTaskList["newbie"].length; j++)
             {
                 shareTaskName = userWxShareTaskList["newbie"][j]
@@ -495,11 +542,11 @@ async function newbieTask()
                 }
             }
         }
-
+        
         for (numUser = 0; numUser < totalUser; numUser++)
         {
             await getEnvParam(numUser)
-
+            
             for(let i=0; i<appTaskArray["newbie"].length; i++)
             {
                 await appTaskList(appTaskArray["newbie"][i]);
@@ -509,18 +556,18 @@ async function newbieTask()
     }
 }
 
-async function queryShareCode()
+async function queryShareCode() 
 {
     if(shareFlag == 1) {
         $.log(`\n开始获取用户 ${nickname[numUser]} 日常任务互助码：\n`)
-
+        
         if(appShareFlag == 1) {
             for(let j=0; j<userAppShareTaskList["daily"].length; j++)
             {
                 await appShareTaskReq(userAppShareTaskList["daily"][j],"daily")
             }
         }
-
+        
         if(wxShareFlag == 1) {
             for(let j=0; j<userWxShareTaskList["daily"].length; j++)
             {
@@ -540,7 +587,7 @@ async function getHelpUser()
     }
 }
 
-async function shareTask()
+async function shareTask() 
 {
     if(shareFlag == 1) {
         $.log(`\n================= 开始分享任务 =================\n`)
@@ -548,10 +595,10 @@ async function shareTask()
         {
             await getEnvParam(numUser)
             await getHelpUser()
-
+            
             if(helpUser >= 0) {
                 $.log(`\n======= 用户${numUser+1} ${nickname[numUser]} 开始帮助 用户${helpUser+1} ${nickname[helpUser]} =======\n`)
-
+                        
                 //长牛互助，同一用户只能相互助力3次，默认不跑
                 if(bullHelpFlag == 1) {
                     if(userAppShareCodeArr["bull_invite"][helpUser]&& userAppShareCodeArr["bull_help"][helpUser])
@@ -559,13 +606,13 @@ async function shareTask()
                         await bullInvite(userAppShareCodeArr["bull_invite"][helpUser],userAppShareCodeArr["bull_help"][helpUser])
                     }
                 }
-
+                
                 //猜涨跌分享
                 if(userAppShareCodeArr["guess_invite"][helpUser] && userAppShareCodeArr["guess_ticket"][helpUser] && userAppShareCodeArr["guess_time"][helpUser])
                 {
                     await wxGuessHelp(userAppShareCodeArr["guess_invite"][helpUser],userAppShareCodeArr["guess_ticket"][helpUser],userAppShareCodeArr["guess_time"][helpUser]);
                 }
-
+                
                 //APP助力任务
                 if(appShareFlag == 1) {
                     for(let j=0; j<userAppShareTaskList["daily"].length; j++)
@@ -576,7 +623,7 @@ async function shareTask()
                         }
                     }
                 }
-
+                
                 //微信助力任务
                 if(wxShareFlag == 1) {
                     for(let j=0; j<userWxShareTaskList["daily"].length; j++)
@@ -587,7 +634,7 @@ async function shareTask()
                         }
                     }
                 }
-
+                
                 $.log(`\n======= 用户 ${nickname[numUser]} 结束助力 =======\n`)
             }
         }
@@ -600,18 +647,18 @@ async function todayIncome()
     for (numUser = 0; numUser < totalUser; numUser++)
     {
         await getEnvParam(numUser)
-
+        
         coinInfo = ""
         await orderQuery(0,1,1,1)
         coinEnd.push(coinInfo)
-
+        
         if(coinEnd[numUser] && coinStart[numUser])
         {
             rewardCoin = coinEnd[numUser] - coinStart[numUser];
             $.log(`用户：${nickname[numUser]}，本次运行获得${rewardCoin}金币\n\n`)
             notifyStr += `用户：${nickname[numUser]}，本次运行获得${rewardCoin}金币\n\n`
         }
-
+        
         await $.wait(200)
     }
 }
@@ -996,7 +1043,7 @@ async function appTaskStatus(taskItem,task_id,task_tid) {
                             }
                         } else {
                             $.log(`${taskItem.taskName}状态查询失败：${result.retmsg}\n`);
-                        }
+                        } 
                     }
                 }
             } catch (e) {
@@ -1040,7 +1087,7 @@ async function appTaskticket(taskItem,task_id,task_tid) {
                             await appTaskDone(taskItem,result.task_ticket,task_id,task_tid);
                         } else {
                             $.log(`${taskItem.taskName}申请票据失败：${result.retmsg}\n`);
-                        }
+                        } 
                     }
                 }
             } catch (e) {
@@ -1290,7 +1337,7 @@ async function wxTaskticket(taskItem,task_id,task_tid) {
                             await wxTaskDone(taskItem,result.task_ticket,task_id,task_tid);
                         } else {
                             $.log(`${taskItem.taskName}申请票据失败：${result.retmsg}\n`);
-                        }
+                        } 
                     }
                 }
             } catch (e) {
@@ -1571,7 +1618,7 @@ async function bullTaskDone(taskItem, extra="") {
                                 await bullTaskDone(taskItem)
                             } else {
                                 console.log(result)
-                            }
+                            } 
                         } else {
                         $.log(`${taskItem.taskName}失败：${result.retmsg}\n`);
                         }
@@ -1993,7 +2040,7 @@ async function appGuessStatus() {
                                 await $.wait(1000)
                             }
                             if(isGuessTime) {
-                                if((result.T_info && result.T_info[0] && result.T_info[0].user_answer == 0) ||
+                                if((result.T_info && result.T_info[0] && result.T_info[0].user_answer == 0) || 
                                    (result.T1_info && result.T1_info[0] && result.T1_info[0].user_answer == 0)) {
                                     if(result.date_list) {
                                         for(let i=0; i<result.date_list.length; i++) {
@@ -2072,7 +2119,7 @@ async function appGetStockInfo(scode,markets) {
                 'Accept-Language': `zh-cn`,
             },
         };
-
+        
         $.get(url, async (err, resp, data) => {
             try {
                 data = data.replace(/\\x/g,'')
@@ -2391,389 +2438,340 @@ function formatDateTime(inputTime) {
 };
 
 function Env(t, e) {
-    class s {
-        constructor(t) {
-            this.env = t
-        }
-        send(t, e = "GET") {
-            t = "string" == typeof t ? {
-                url: t
-            }
-                : t;
-            let s = this.get;
-            return "POST" === e && (s = this.post),
-                new Promise((e, i) => {
-                    s.call(this, t, (t, s, r) => {
-                        t ? i(t) : e(s)
-                    })
-                })
-        }
-        get(t) {
-            return this.send.call(this.env, t)
-        }
-        post(t) {
-            return this.send.call(this.env, t, "POST")
-        }
+  class s {
+    constructor(t) {
+      this.env = t
     }
-    return new class {
-        constructor(t, e) {
-            this.name = t,
-                this.http = new s(this),
-                this.data = null,
-                this.dataFile = "box.dat",
-                this.logs = [],
-                this.isMute = !1,
-                this.isNeedRewrite = !1,
-                this.logSeparator = "\n",
-                this.startTime = (new Date).getTime(),
-                Object.assign(this, e),
-                this.log(`\n${this.name}\u811a\u672c,\u5f00\u59cb\u6267\u884c:`)
-        }
-        isNode() {
-            return "undefined" != typeof module && !!module.exports
-        }
-        isQuanX() {
-            return "undefined" != typeof $task
-        }
-        isSurge() {
-            return "undefined" != typeof $httpClient && "undefined" == typeof $loon
-        }
-        isLoon() {
-            return "undefined" != typeof $loon
-        }
-        toObj(t, e = null) {
-            try {
-                return JSON.parse(t)
-            } catch {
-                return e
-            }
-        }
-        toStr(t, e = null) {
-            try {
-                return JSON.stringify(t)
-            } catch {
-                return e
-            }
-        }
-        getjson(t, e) {
-            let s = e;
-            const i = this.getdata(t);
-            if (i)
-                try {
-                    s = JSON.parse(this.getdata(t))
-                } catch { }
-            return s
-        }
-        setjson(t, e) {
-            try {
-                return this.setdata(JSON.stringify(t), e)
-            } catch {
-                return !1
-            }
-        }
-        getScript(t) {
-            return new Promise(e => {
-                this.get({
-                    url: t
-                }, (t, s, i) => e(i))
-            })
-        }
-        runScript(t, e) {
-            return new Promise(s => {
-                let i = this.getdata("@chavy_boxjs_userCfgs.httpapi");
-                i = i ? i.replace(/\n/g, "").trim() : i;
-                let r = this.getdata("@chavy_boxjs_userCfgs.httpapi_timeout");
-                r = r ? 1 * r : 20,
-                    r = e && e.timeout ? e.timeout : r;
-                const [o, h] = i.split("@"),
-                    a = {
-                        url: `http://${h}/v1/scripting/evaluate`,
-                        body: {
-                            script_text: t,
-                            mock_type: "cron",
-                            timeout: r
-                        },
-                        headers: {
-                            "X-Key": o,
-                            Accept: "*/*"
-                        }
-                    };
-                this.post(a, (t, e, i) => s(i))
-            }).catch(t => this.logErr(t))
-        }
-        loaddata() {
-            if (!this.isNode())
-                return {}; {
-                this.fs = this.fs ? this.fs : require("fs"),
-                    this.path = this.path ? this.path : require("path");
-                const t = this.path.resolve(this.dataFile),
-                    e = this.path.resolve(process.cwd(), this.dataFile),
-                    s = this.fs.existsSync(t),
-                    i = !s && this.fs.existsSync(e);
-                if (!s && !i)
-                    return {}; {
-                    const i = s ? t : e;
-                    try {
-                        return JSON.parse(this.fs.readFileSync(i))
-                    } catch (t) {
-                        return {}
-                    }
-                }
-            }
-        }
-        writedata() {
-            if (this.isNode()) {
-                this.fs = this.fs ? this.fs : require("fs"),
-                    this.path = this.path ? this.path : require("path");
-                const t = this.path.resolve(this.dataFile),
-                    e = this.path.resolve(process.cwd(), this.dataFile),
-                    s = this.fs.existsSync(t),
-                    i = !s && this.fs.existsSync(e),
-                    r = JSON.stringify(this.data);
-                s ? this.fs.writeFileSync(t, r) : i ? this.fs.writeFileSync(e, r) : this.fs.writeFileSync(t, r)
-            }
-        }
-        lodash_get(t, e, s) {
-            const i = e.replace(/\[(\d+)\]/g, ".$1").split(".");
-            let r = t;
-            for (const t of i)
-                if (r = Object(r)[t], void 0 === r)
-                    return s;
-            return r
-        }
-        lodash_set(t, e, s) {
-            return Object(t) !== t ? t : (Array.isArray(e) || (e = e.toString().match(/[^.[\]]+/g) || []), e.slice(0, -1).reduce((t, s, i) => Object(t[s]) === t[s] ? t[s] : t[s] = Math.abs(e[i + 1]) >> 0 == +e[i + 1] ? [] : {}, t)[e[e.length - 1]] = s, t)
-        }
-        getdata(t) {
-            let e = this.getval(t);
-            if (/^@/.test(t)) {
-                const [, s, i] = /^@(.*?)\.(.*?)$/.exec(t),
-                    r = s ? this.getval(s) : "";
-                if (r)
-                    try {
-                        const t = JSON.parse(r);
-                        e = t ? this.lodash_get(t, i, "") : e
-                    } catch (t) {
-                        e = ""
-                    }
-            }
-            return e
-        }
-        setdata(t, e) {
-            let s = !1;
-            if (/^@/.test(e)) {
-                const [, i, r] = /^@(.*?)\.(.*?)$/.exec(e),
-                    o = this.getval(i),
-                    h = i ? "null" === o ? null : o || "{}" : "{}";
-                try {
-                    const e = JSON.parse(h);
-                    this.lodash_set(e, r, t),
-                        s = this.setval(JSON.stringify(e), i)
-                } catch (e) {
-                    const o = {};
-                    this.lodash_set(o, r, t),
-                        s = this.setval(JSON.stringify(o), i)
-                }
-            } else
-                s = this.setval(t, e);
-            return s
-        }
-        getval(t) {
-            return this.isSurge() || this.isLoon() ? $persistentStore.read(t) : this.isQuanX() ? $prefs.valueForKey(t) : this.isNode() ? (this.data = this.loaddata(), this.data[t]) : this.data && this.data[t] || null
-        }
-        setval(t, e) {
-            return this.isSurge() || this.isLoon() ? $persistentStore.write(t, e) : this.isQuanX() ? $prefs.setValueForKey(t, e) : this.isNode() ? (this.data = this.loaddata(), this.data[e] = t, this.writedata(), !0) : this.data && this.data[e] || null
-        }
-        initGotEnv(t) {
-            this.got = this.got ? this.got : require("got"),
-                this.cktough = this.cktough ? this.cktough : require("tough-cookie"),
-                this.ckjar = this.ckjar ? this.ckjar : new this.cktough.CookieJar,
-                t && (t.headers = t.headers ? t.headers : {}, void 0 === t.headers.Cookie && void 0 === t.cookieJar && (t.cookieJar = this.ckjar))
-        }
-        get(t, e = (() => { })) {
-            t.headers && (delete t.headers["Content-Type"], delete t.headers["Content-Length"]),
-                this.isSurge() || this.isLoon() ? (this.isSurge() && this.isNeedRewrite && (t.headers = t.headers || {}, Object.assign(t.headers, {
-                    "X-Surge-Skip-Scripting": !1
-                })), $httpClient.get(t, (t, s, i) => {
-                    !t && s && (s.body = i, s.statusCode = s.status),
-                        e(t, s, i)
-                })) : this.isQuanX() ? (this.isNeedRewrite && (t.opts = t.opts || {}, Object.assign(t.opts, {
-                    hints: !1
-                })), $task.fetch(t).then(t => {
-                    const {
-                        statusCode: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    } = t;
-                    e(null, {
-                        status: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    }, o)
-                }, t => e(t))) : this.isNode() && (this.initGotEnv(t), this.got(t).on("redirect", (t, e) => {
-                    try {
-                        if (t.headers["set-cookie"]) {
-                            const s = t.headers["set-cookie"].map(this.cktough.Cookie.parse).toString();
-                            this.ckjar.setCookieSync(s, null),
-                                e.cookieJar = this.ckjar
-                        }
-                    } catch (t) {
-                        this.logErr(t)
-                    }
-                }).then(t => {
-                    const {
-                        statusCode: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    } = t;
-                    e(null, {
-                        status: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    }, o)
-                }, t => {
-                    const {
-                        message: s,
-                        response: i
-                    } = t;
-                    e(s, i, i && i.body)
-                }))
-        }
-        post(t, e = (() => { })) {
-            if (t.body && t.headers && !t.headers["Content-Type"] && (t.headers["Content-Type"] = "application/x-www-form-urlencoded"), t.headers && delete t.headers["Content-Length"], this.isSurge() || this.isLoon())
-                this.isSurge() && this.isNeedRewrite && (t.headers = t.headers || {}, Object.assign(t.headers, {
-                    "X-Surge-Skip-Scripting": !1
-                })), $httpClient.post(t, (t, s, i) => {
-                    !t && s && (s.body = i, s.statusCode = s.status),
-                        e(t, s, i)
-                });
-            else if (this.isQuanX())
-                t.method = "POST", this.isNeedRewrite && (t.opts = t.opts || {}, Object.assign(t.opts, {
-                    hints: !1
-                })), $task.fetch(t).then(t => {
-                    const {
-                        statusCode: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    } = t;
-                    e(null, {
-                        status: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    }, o)
-                }, t => e(t));
-            else if (this.isNode()) {
-                this.initGotEnv(t);
-                const {
-                    url: s,
-                    ...i
-                } = t;
-                this.got.post(s, i).then(t => {
-                    const {
-                        statusCode: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    } = t;
-                    e(null, {
-                        status: s,
-                        statusCode: i,
-                        headers: r,
-                        body: o
-                    }, o)
-                }, t => {
-                    const {
-                        message: s,
-                        response: i
-                    } = t;
-                    e(s, i, i && i.body)
-                })
-            }
-        }
-        time(t) {
-            let e = {
-                "M+": (new Date).getMonth() + 1,
-                "d+": (new Date).getDate(),
-                "H+": (new Date).getHours(),
-                "m+": (new Date).getMinutes(),
-                "s+": (new Date).getSeconds(),
-                "q+": Math.floor(((new Date).getMonth() + 3) / 3),
-                S: (new Date).getMilliseconds()
-            };
-            /(y+)/.test(t) && (t = t.replace(RegExp.$1, ((new Date).getFullYear() + "").substr(4 - RegExp.$1.length)));
-            for (let s in e)
-                new RegExp("(" + s + ")").test(t) && (t = t.replace(RegExp.$1, 1 == RegExp.$1.length ? e[s] : ("00" + e[s]).substr(("" + e[s]).length)));
-            return t
-        }
-        msg(e = t, s = "", i = "", r) {
-            const o = t => {
-                if (!t)
-                    return t;
-                if ("string" == typeof t)
-                    return this.isLoon() ? t : this.isQuanX() ? {
-                        "open-url": t
-                    }
-                        : this.isSurge() ? {
-                            url: t
-                        }
-                            : void 0;
-                if ("object" == typeof t) {
-                    if (this.isLoon()) {
-                        let e = t.openUrl || t.url || t["open-url"],
-                            s = t.mediaUrl || t["media-url"];
-                        return {
-                            openUrl: e,
-                            mediaUrl: s
-                        }
-                    }
-                    if (this.isQuanX()) {
-                        let e = t["open-url"] || t.url || t.openUrl,
-                            s = t["media-url"] || t.mediaUrl;
-                        return {
-                            "open-url": e,
-                            "media-url": s
-                        }
-                    }
-                    if (this.isSurge()) {
-                        let e = t.url || t.openUrl || t["open-url"];
-                        return {
-                            url: e
-                        }
-                    }
-                }
-            };
-            this.isMute || (this.isSurge() || this.isLoon() ? $notification.post(e, s, i, o(r)) : this.isQuanX() && $notify(e, s, i, o(r)));
-            let h = ["", "==============\ud83d\udce3\u7cfb\u7edf\u901a\u77e5\ud83d\udce3=============="];
-            h.push(e),
-                s && h.push(s),
-                i && h.push(i),
-                console.log(h.join("\n")),
-                this.logs = this.logs.concat(h)
-        }
-        log(...t) {
-            t.length > 0 && (this.logs = [...this.logs, ...t]),
-                console.log(t.join(this.logSeparator))
-        }
-        logErr(t, e) {
-            const s = !this.isSurge() && !this.isQuanX() && !this.isLoon();
-            s ? this.log("", `\u2757\ufe0f${this.name}, \u9519\u8bef!`, t.stack) : this.log("", `\u2757\ufe0f${this.name}, \u9519\u8bef!`, t)
-        }
-        wait(t) {
-            return new Promise(e => setTimeout(e, t))
-        }
-        done(t = {}) {
-            const e = (new Date).getTime(),
-                s = (e - this.startTime) / 1e3;
-            this.log("", `${this.name}\u811a\u672c, \u6267\u884c\u7ed3\u675f! \u7528\u65f6${s}\u79d2`),
-                this.log(),
-                (this.isSurge() || this.isQuanX() || this.isLoon()) && $done(t)
-        }
+    send(t, e = "GET") {
+      t = "string" == typeof t ? {
+        url: t
+      } : t;
+      let s = this.get;
+      return "POST" === e && (s = this.post), new Promise((e, i) => {
+        s.call(this, t, (t, s, r) => {
+          t ? i(t) : e(s)
+        })
+      })
     }
-        (t, e)
+    get(t) {
+      return this.send.call(this.env, t)
+    }
+    post(t) {
+      return this.send.call(this.env, t, "POST")
+    }
+  }
+  return new class {
+    constructor(t, e) {
+      this.name = t, this.http = new s(this), this.data = null, this.dataFile = "box.dat", this.logs = [], this.isMute = !1, this.isNeedRewrite = !1, this.logSeparator = "\n", this.startTime = (new Date).getTime(), Object.assign(this, e), this.log("", `\ud83d\udd14${this.name}, \u5f00\u59cb!`)
+    }
+    isNode() {
+      return "undefined" != typeof module && !!module.exports
+    }
+    isQuanX() {
+      return "undefined" != typeof $task
+    }
+    isSurge() {
+      return "undefined" != typeof $httpClient && "undefined" == typeof $loon
+    }
+    isLoon() {
+      return "undefined" != typeof $loon
+    }
+    toObj(t, e = null) {
+      try {
+        return JSON.parse(t)
+      } catch {
+        return e
+      }
+    }
+    toStr(t, e = null) {
+      try {
+        return JSON.stringify(t)
+      } catch {
+        return e
+      }
+    }
+    getjson(t, e) {
+      let s = e;
+      const i = this.getdata(t);
+      if (i) try {
+        s = JSON.parse(this.getdata(t))
+      } catch {}
+      return s
+    }
+    setjson(t, e) {
+      try {
+        return this.setdata(JSON.stringify(t), e)
+      } catch {
+        return !1
+      }
+    }
+    getScript(t) {
+      return new Promise(e => {
+        this.get({
+          url: t
+        }, (t, s, i) => e(i))
+      })
+    }
+    runScript(t, e) {
+      return new Promise(s => {
+        let i = this.getdata("@chavy_boxjs_userCfgs.httpapi");
+        i = i ? i.replace(/\n/g, "").trim() : i;
+        let r = this.getdata("@chavy_boxjs_userCfgs.httpapi_timeout");
+        r = r ? 1 * r : 20, r = e && e.timeout ? e.timeout : r;
+        const [o, h] = i.split("@"), a = {
+          url: `http://${h}/v1/scripting/evaluate`,
+          body: {
+            script_text: t,
+            mock_type: "cron",
+            timeout: r
+          },
+          headers: {
+            "X-Key": o,
+            Accept: "*/*"
+          }
+        };
+        this.post(a, (t, e, i) => s(i))
+      }).catch(t => this.logErr(t))
+    }
+    loaddata() {
+      if (!this.isNode()) return {}; {
+        this.fs = this.fs ? this.fs : require("fs"), this.path = this.path ? this.path : require("path");
+        const t = this.path.resolve(this.dataFile),
+          e = this.path.resolve(process.cwd(), this.dataFile),
+          s = this.fs.existsSync(t),
+          i = !s && this.fs.existsSync(e);
+        if (!s && !i) return {}; {
+          const i = s ? t : e;
+          try {
+            return JSON.parse(this.fs.readFileSync(i))
+          } catch (t) {
+            return {}
+          }
+        }
+      }
+    }
+    writedata() {
+      if (this.isNode()) {
+        this.fs = this.fs ? this.fs : require("fs"), this.path = this.path ? this.path : require("path");
+        const t = this.path.resolve(this.dataFile),
+          e = this.path.resolve(process.cwd(), this.dataFile),
+          s = this.fs.existsSync(t),
+          i = !s && this.fs.existsSync(e),
+          r = JSON.stringify(this.data);
+        s ? this.fs.writeFileSync(t, r) : i ? this.fs.writeFileSync(e, r) : this.fs.writeFileSync(t, r)
+      }
+    }
+    lodash_get(t, e, s) {
+      const i = e.replace(/\[(\d+)\]/g, ".$1").split(".");
+      let r = t;
+      for (const t of i)
+        if (r = Object(r)[t], void 0 === r) return s;
+      return r
+    }
+    lodash_set(t, e, s) {
+      return Object(t) !== t ? t : (Array.isArray(e) || (e = e.toString().match(/[^.[\]]+/g) || []), e.slice(0, -1).reduce((t, s, i) => Object(t[s]) === t[s] ? t[s] : t[s] = Math.abs(e[i + 1]) >> 0 == +e[i + 1] ? [] : {}, t)[e[e.length - 1]] = s, t)
+    }
+    getdata(t) {
+      let e = this.getval(t);
+      if (/^@/.test(t)) {
+        const [, s, i] = /^@(.*?)\.(.*?)$/.exec(t), r = s ? this.getval(s) : "";
+        if (r) try {
+          const t = JSON.parse(r);
+          e = t ? this.lodash_get(t, i, "") : e
+        } catch (t) {
+          e = ""
+        }
+      }
+      return e
+    }
+    setdata(t, e) {
+      let s = !1;
+      if (/^@/.test(e)) {
+        const [, i, r] = /^@(.*?)\.(.*?)$/.exec(e), o = this.getval(i), h = i ? "null" === o ? null : o || "{}" : "{}";
+        try {
+          const e = JSON.parse(h);
+          this.lodash_set(e, r, t), s = this.setval(JSON.stringify(e), i)
+        } catch (e) {
+          const o = {};
+          this.lodash_set(o, r, t), s = this.setval(JSON.stringify(o), i)
+        }
+      } else s = this.setval(t, e);
+      return s
+    }
+    getval(t) {
+      return this.isSurge() || this.isLoon() ? $persistentStore.read(t) : this.isQuanX() ? $prefs.valueForKey(t) : this.isNode() ? (this.data = this.loaddata(), this.data[t]) : this.data && this.data[t] || null
+    }
+    setval(t, e) {
+      return this.isSurge() || this.isLoon() ? $persistentStore.write(t, e) : this.isQuanX() ? $prefs.setValueForKey(t, e) : this.isNode() ? (this.data = this.loaddata(), this.data[e] = t, this.writedata(), !0) : this.data && this.data[e] || null
+    }
+    initGotEnv(t) {
+      this.got = this.got ? this.got : require("got"), this.cktough = this.cktough ? this.cktough : require("tough-cookie"), this.ckjar = this.ckjar ? this.ckjar : new this.cktough.CookieJar, t && (t.headers = t.headers ? t.headers : {}, void 0 === t.headers.Cookie && void 0 === t.cookieJar && (t.cookieJar = this.ckjar))
+    }
+    get(t, e = (() => {})) {
+      t.headers && (delete t.headers["Content-Type"], delete t.headers["Content-Length"]), this.isSurge() || this.isLoon() ? (this.isSurge() && this.isNeedRewrite && (t.headers = t.headers || {}, Object.assign(t.headers, {
+        "X-Surge-Skip-Scripting": !1
+      })), $httpClient.get(t, (t, s, i) => {
+        !t && s && (s.body = i, s.statusCode = s.status), e(t, s, i)
+      })) : this.isQuanX() ? (this.isNeedRewrite && (t.opts = t.opts || {}, Object.assign(t.opts, {
+        hints: !1
+      })), $task.fetch(t).then(t => {
+        const {
+          statusCode: s,
+          statusCode: i,
+          headers: r,
+          body: o
+        } = t;
+        e(null, {
+          status: s,
+          statusCode: i,
+          headers: r,
+          body: o
+        }, o)
+      }, t => e(t))) : this.isNode() && (this.initGotEnv(t), this.got(t).on("redirect", (t, e) => {
+        try {
+          if (t.headers["set-cookie"]) {
+            const s = t.headers["set-cookie"].map(this.cktough.Cookie.parse).toString();
+            this.ckjar.setCookieSync(s, null), e.cookieJar = this.ckjar
+          }
+        } catch (t) {
+          this.logErr(t)
+        }
+      }).then(t => {
+        const {
+          statusCode: s,
+          statusCode: i,
+          headers: r,
+          body: o
+        } = t;
+        e(null, {
+          status: s,
+          statusCode: i,
+          headers: r,
+          body: o
+        }, o)
+      }, t => {
+        const {
+          message: s,
+          response: i
+        } = t;
+        e(s, i, i && i.body)
+      }))
+    }
+    post(t, e = (() => {})) {
+      if (t.body && t.headers && !t.headers["Content-Type"] && (t.headers["Content-Type"] = "application/x-www-form-urlencoded"), t.headers && delete t.headers["Content-Length"], this.isSurge() || this.isLoon()) this.isSurge() && this.isNeedRewrite && (t.headers = t.headers || {}, Object.assign(t.headers, {
+        "X-Surge-Skip-Scripting": !1
+      })), $httpClient.post(t, (t, s, i) => {
+        !t && s && (s.body = i, s.statusCode = s.status), e(t, s, i)
+      });
+      else if (this.isQuanX()) t.method = "POST", this.isNeedRewrite && (t.opts = t.opts || {}, Object.assign(t.opts, {
+        hints: !1
+      })), $task.fetch(t).then(t => {
+        const {
+          statusCode: s,
+          statusCode: i,
+          headers: r,
+          body: o
+        } = t;
+        e(null, {
+          status: s,
+          statusCode: i,
+          headers: r,
+          body: o
+        }, o)
+      }, t => e(t));
+      else if (this.isNode()) {
+        this.initGotEnv(t);
+        const {
+          url: s,
+          ...i
+        } = t;
+        this.got.post(s, i).then(t => {
+          const {
+            statusCode: s,
+            statusCode: i,
+            headers: r,
+            body: o
+          } = t;
+          e(null, {
+            status: s,
+            statusCode: i,
+            headers: r,
+            body: o
+          }, o)
+        }, t => {
+          const {
+            message: s,
+            response: i
+          } = t;
+          e(s, i, i && i.body)
+        })
+      }
+    }
+    time(t) {
+      let e = {
+        "M+": (new Date).getMonth() + 1,
+        "d+": (new Date).getDate(),
+        "H+": (new Date).getHours(),
+        "m+": (new Date).getMinutes(),
+        "s+": (new Date).getSeconds(),
+        "q+": Math.floor(((new Date).getMonth() + 3) / 3),
+        S: (new Date).getMilliseconds()
+      };
+      /(y+)/.test(t) && (t = t.replace(RegExp.$1, ((new Date).getFullYear() + "").substr(4 - RegExp.$1.length)));
+      for (let s in e) new RegExp("(" + s + ")").test(t) && (t = t.replace(RegExp.$1, 1 == RegExp.$1.length ? e[s] : ("00" + e[s]).substr(("" + e[s]).length)));
+      return t
+    }
+    msg(e = t, s = "", i = "", r) {
+      const o = t => {
+        if (!t) return t;
+        if ("string" == typeof t) return this.isLoon() ? t : this.isQuanX() ? {
+          "open-url": t
+        } : this.isSurge() ? {
+          url: t
+        } : void 0;
+        if ("object" == typeof t) {
+          if (this.isLoon()) {
+            let e = t.openUrl || t.url || t["open-url"],
+              s = t.mediaUrl || t["media-url"];
+            return {
+              openUrl: e,
+              mediaUrl: s
+            }
+          }
+          if (this.isQuanX()) {
+            let e = t["open-url"] || t.url || t.openUrl,
+              s = t["media-url"] || t.mediaUrl;
+            return {
+              "open-url": e,
+              "media-url": s
+            }
+          }
+          if (this.isSurge()) {
+            let e = t.url || t.openUrl || t["open-url"];
+            return {
+              url: e
+            }
+          }
+        }
+      };
+      this.isMute || (this.isSurge() || this.isLoon() ? $notification.post(e, s, i, o(r)) : this.isQuanX() && $notify(e, s, i, o(r)));
+      let h = ["", "==============\ud83d\udce3\u7cfb\u7edf\u901a\u77e5\ud83d\udce3=============="];
+      h.push(e), s && h.push(s), i && h.push(i), console.log(h.join("\n")), this.logs = this.logs.concat(h)
+    }
+    log(...t) {
+      t.length > 0 && (this.logs = [...this.logs, ...t]), console.log(t.join(this.logSeparator))
+    }
+    logErr(t, e) {
+      const s = !this.isSurge() && !this.isQuanX() && !this.isLoon();
+      s ? this.log("", `\u2757\ufe0f${this.name}, \u9519\u8bef!`, t.stack) : this.log("", `\u2757\ufe0f${this.name}, \u9519\u8bef!`, t)
+    }
+    wait(t) {
+      return new Promise(e => setTimeout(e, t))
+    }
+    done(t = {}) {
+      const e = (new Date).getTime(),
+        s = (e - this.startTime) / 1e3;
+      this.log("", `\ud83d\udd14${this.name}, \u7ed3\u675f! \ud83d\udd5b ${s} \u79d2`), this.log(), (this.isSurge() || this.isQuanX() || this.isLoon()) && $done(t)
+    }
+  }(t, e)
 }
