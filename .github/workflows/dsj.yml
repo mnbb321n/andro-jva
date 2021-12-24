@@ -33,9 +33,7 @@ jobs:
           npm install cron
           npm install request
       - name: '运行 【txzxtock】'
-        if: env.TxStockAppUrl
-                TxStockAppHeader
-                TxStockWxHeader
+        if: env.TxStockWxHeader
         run: |
           node txzxtock.js
         env:
@@ -44,7 +42,7 @@ jobs:
           TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
   
       - name: '运行 【txzxtock二】'
-        if: env.TxStockAppUrl2
+        if: env.TxStockWxHeader2
         run: |
           node txzxtock.js
         env:
