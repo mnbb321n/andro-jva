@@ -16,10 +16,7 @@ jobs:
     env:
         TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER }}
         TxStockAppHeader2: ${{ secrets.TXSTOCKAPPHEADER2 }}
-        TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL }}
-        TxStockAppUrl2: ${{ secrets.TXSTOCKAPPURL2 }}
-        TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
-        TxStockWxHeader2: ${{ secrets.TXSTOCKWXHEADER2 }}
+     
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js 14.x
