@@ -1,0 +1,26 @@
+{
+  "name": "Staitri1906",
+  "version": "1.0.0",
+  "description": "",
+  "main": "AlipayManor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Staitri1906/YoTo-9.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "dependencies": {
+    "crypto-js": "^4.0.0",
+    "got": "^11.7.0",
+    "http-server": "^0.12.3",
+    "tough-cookie": "^4.0.0"
+  }
+}
