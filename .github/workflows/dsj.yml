@@ -34,8 +34,8 @@ jobs:
           npm install request
       - name: '运行 【txzxtock】'
         if: env.TxStockAppUrl
-            env.TxStockAppHeader
-            env.TxStockWxHeader
+                TxStockAppHeader
+                TxStockWxHeader
         run: |
           node txzxtock.js
         env:
