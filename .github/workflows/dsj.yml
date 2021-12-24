@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.repository.owner.id == github.event.sender.id
     env:
-        TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER }}
-        TxStockAppHeader2: ${{ secrets.TXSTOCKAPPHEADER2 }}
+        TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL }}
+        TxStockAppUrl2: ${{ secrets.TXSTOCKAPPURL2 }}
      
     steps:
       - uses: actions/checkout@v2
@@ -26,10 +26,9 @@ jobs:
       - name: npm install
         run: |
           npm installnpm 
-          npm install cron
-          npm install request
+         
       - name: '运行 【txzxtock】'
-        if: env.TxStockAppHeader
+        if: env.TxStockAppUrl
         run: |
           node txzxtock.js
         env:
@@ -38,7 +37,7 @@ jobs:
           TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
   
       - name: '运行 【txzxtock二】'
-        if: env.TxStockAppHeader2
+        if: env.TxStockAppUrl2
         run: |
           node txzxtock.js
         env:
