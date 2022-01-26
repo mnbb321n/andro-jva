@@ -1,15 +1,3 @@
-
-
-========isQuanX=========
-[rewrite_local]
-https://api.st615.com/v1/user/info\?token=\S+ url script-request-header https://gitee.com/xiecoll/radish-script/raw/master/jzread.js
-
-hostname = api.st615.com
-*/
-
-// [task_local]
-// */60 * * * * https://gitee.com/xiecoll/radish-script/raw/master/jzread.js, tag=九章头条, img-url=circles.hexagongrid.fill.system, enabled=true
-
 const $ = new Env('九章头条');
 let status;
 status = (status = ($.getval("jzreadstatus") || "1") ) > 1 ? `${status}` : ""; // 账号扩展字符
