@@ -58,6 +58,7 @@ jobs:
 
           const workflows = [
             'dsj.yml',
+            'jiuzhangtt.yml',
             'delete-workflow-runs.yml'
           ]
 
