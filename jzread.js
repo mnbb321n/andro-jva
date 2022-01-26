@@ -1,4 +1,4 @@
-'
+
 
 ========isQuanX=========
 [rewrite_local]
