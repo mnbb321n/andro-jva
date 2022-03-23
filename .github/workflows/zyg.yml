@@ -1,0 +1,48 @@
+name: 自游股
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 1 3,8 * * *
+  watch:
+    types: started
+  repository_dispatch:
+    types: bean_change
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
+    env:
+        TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL }}
+        TxStockAppUrl2: ${{ secrets.TXSTOCKAPPURL2 }}
+        TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER }}
+        TxStockAppHeader2: ${{ secrets.TXSTOCKAPPHEADER2 }}
+        TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
+        TxStockWxHeader2: ${{ secrets.TXSTOCKWXHEADER2 }}
+     
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 14.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
+      - name: npm install
+        run: |
+          npm install 
+          npm install cron
+          npm install request
+      - name: '运行 【txzxtock】'
+        if: env.TxStockCookie
+        run: |
+          node txzxtockV2.js
+        env:
+          TxStockCookie: ${{ secrets.TXSTOCKCOOKIE }}
+        
+      - name: '运行 【txzxtock二】'
+        if: env.TxStockCookier2
+        run: |
+          node txzxtockV2.js
+        env:
+          TxStockCookie: ${{ secrets.TXSTOCKCOOKIE2 }}
+          
