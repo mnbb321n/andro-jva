@@ -14,12 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.repository.owner.id == github.event.sender.id
     env:
-        TxStockAppUrl: ${{ secrets.TXSTOCKAPPURL }}
-        TxStockAppUrl2: ${{ secrets.TXSTOCKAPPURL2 }}
-        TxStockAppHeader: ${{ secrets.TXSTOCKAPPHEADER }}
-        TxStockAppHeader2: ${{ secrets.TXSTOCKAPPHEADER2 }}
-        TxStockWxHeader: ${{ secrets.TXSTOCKWXHEADER }}
-        TxStockWxHeader2: ${{ secrets.TXSTOCKWXHEADER2 }}
+        TxStockCookie: ${{ secrets.TXSTOCKCOOKIE }}
+        
      
     steps:
       - uses: actions/checkout@v2
